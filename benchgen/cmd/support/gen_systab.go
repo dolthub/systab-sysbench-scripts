@@ -82,9 +82,6 @@ func (g *ScriptGen) genPrepareSys(define ScriptDef) {
 	fmt.Fprintf(g.w, "  local drv = sysbench.sql.driver()\n")
 	fmt.Fprintf(g.w, "  local con = drv:connect()\n")
 
-	fmt.Fprintf(g.w, "  con:query('create database if not exists sbtest;')\n")
-	fmt.Fprintf(g.w, "  con:query('use sbtest;')\n")
-
 	for i := 0; i < define.Branches; i++ {
 		fmt.Fprintf(g.w, "  con:query(\"call dolt_checkout('-b', 'branch_%d')\"", i)
 		fmt.Fprintf(g.w, "  con:query(\"call dolt_tag('tag_%d', 'head')\"", i)
@@ -291,9 +288,6 @@ func (g *ScriptGen) genPrepareDummy(define ScriptDef) {
 	fmt.Fprintf(g.w, "  sysbench.opt.threads = 1\n")
 	fmt.Fprintf(g.w, "  local drv = sysbench.sql.driver()\n")
 	fmt.Fprintf(g.w, "  local con = drv:connect()\n")
-
-	fmt.Fprintf(g.w, "  con:query('create database if not exists sbtest;')\n")
-	fmt.Fprintf(g.w, "  con:query('use sbtest;')\n")
 
 	inserters := newInserter(g.w, define.Commits, define.DiffsPerCommit)
 

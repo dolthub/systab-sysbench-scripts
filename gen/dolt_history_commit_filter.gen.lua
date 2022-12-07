@@ -26,8 +26,6 @@ function prepare()
   sysbench.opt.threads = 1
   local drv = sysbench.sql.driver()
   local con = drv:connect()
-  con:query('create database if not exists sbtest;')
-  con:query('use sbtest;')
   con:query("create table xy (x int primary key, y varchar(20));")
   con:query([[
 insert into xy values
