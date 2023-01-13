@@ -54,7 +54,7 @@ func (g *ScriptGen) Generate(d ScriptDef, w io.Writer) {
 	g.w = w
 
 	g.genThreadInit(d)
-	g.genEvent()
+	g.genEvent(d)
 	g.genDone()
 	g.genCleanup()
 	if d.Dummy != nil {
@@ -110,58 +110,6 @@ func (g *ScriptGen) genPrepareSys(define ScriptDef) {
 	fmt.Fprintf(g.w, "end\n\n")
 
 }
-
-//
-//func (g *ScriptGen) dummyInserter(table string, ins inserter) {
-//	lastCm := commit{hash: "NULL", time: "NULL", toX: "NULL", toY: "NULL"}
-//	var thisCm commit
-//	for i := 0; i < g.define.Commits; i++ {
-//		if !ins.perCommit || (ins.perCommit && i == 0) {
-//			fmt.Fprintf(g.w, "  con:query([[\n")
-//			fmt.Fprintf(g.w, "insert into %s values\n", table)
-//		}
-//		end := g.define.DiffsPerCommit
-//		if ins.isHistory {
-//			end *= i + 1
-//		}
-//		thisCm = randCommit()
-//		for j := 0; j < end; j++ {
-//			id := i*g.define.DiffsPerCommit + j
-//			if ins.isHistory {
-//				id = j
-//			}
-//			thisCm.toX = fmt.Sprintf("%d", id)
-//			thisCm.toY = fmt.Sprintf("row %d", id)
-//			values := ins.vals(thisCm, lastCm)
-//			if values == nil {
-//				lastCm = thisCm
-//				continue
-//			}
-//			fmt.Fprintf(g.w, ins.format(lastCm), values...)
-//			lastCm = thisCm
-//			if ins.perCommit {
-//				if i == g.define.Commits-1 {
-//					fmt.Fprintf(g.w, ";\n")
-//				} else {
-//					fmt.Fprintf(g.w, ",\n")
-//				}
-//				break
-//			} else {
-//				if j == end-1 {
-//					fmt.Fprintf(g.w, ";\n")
-//				} else {
-//					fmt.Fprintf(g.w, ",\n")
-//				}
-//			}
-//		}
-//		if !ins.perCommit {
-//			fmt.Fprintf(g.w, "]])\n")
-//		}
-//	}
-//	if ins.perCommit {
-//		fmt.Fprintf(g.w, "]])\n")
-//	}
-//}
 
 type tableInserter struct {
 	schema    []byte
@@ -498,20 +446,29 @@ func (g *ScriptGen) genThreadInit(define ScriptDef) {
 	fmt.Fprintf(g.w, "function thread_init()\n")
 	fmt.Fprintf(g.w, "  drv = sysbench.sql.driver()\n")
 	fmt.Fprintf(g.w, "  con = drv:connect()\n")
-	fmt.Fprintf(g.w, "  stmt = con:prepare('%s')\n", define.Query)
+
+	if define.Dummy == nil {
+		fmt.Fprintf(g.w, "  local rs = con:query('select hashof(\\'head~%d\\') as commit')\n", define.Commits-1)
+	} else {
+		fmt.Fprintf(g.w, "  local rs = con:query('select (select commit_hash from dl limit 1 offset %d) as commit')\n", define.Commits-1)
+	}
+	fmt.Fprintf(g.w, "  commit = unpack(rs:fetch_row(), 1, rs.nfields) \n")
+
+	fmt.Fprintf(g.w, "  q = string.format([[%s]], commit) \n", define.Query)
+	fmt.Fprintf(g.w, "  print('Running: ' .. q)\n")
+
 	fmt.Fprintf(g.w, "end\n\n")
 }
 
 func (g *ScriptGen) genDone() {
 	fmt.Fprintf(g.w, "function thread_done()\n")
-	fmt.Fprintf(g.w, "  stmt:close()\n")
 	fmt.Fprintf(g.w, "  con:disconnect()\n")
 	fmt.Fprintf(g.w, "end\n\n")
 }
 
-func (g *ScriptGen) genEvent() {
+func (g *ScriptGen) genEvent(define ScriptDef) {
 	fmt.Fprintf(g.w, "function event()\n")
-	fmt.Fprintf(g.w, "  stmt:execute()\n")
+	fmt.Fprintf(g.w, "  con:query(q)\n")
 	fmt.Fprintf(g.w, "end\n\n")
 }
 

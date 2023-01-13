@@ -5,7 +5,7 @@ function thread_init()
   con = drv:connect()
   local rs = con:query('select hashof(\'head~599\') as commit')
   commit = unpack(rs:fetch_row(), 1, rs.nfields) 
-  q = string.format([[select * from dolt_diff where commit_hash = '%s';]], commit) 
+  q = string.format([[select * from dolt_diff_xy join dolt_log on commit_hash = from_commit]], commit) 
   print('Running: ' .. q)
 end
 

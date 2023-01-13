@@ -3,15 +3,17 @@
 function thread_init()
   drv = sysbench.sql.driver()
   con = drv:connect()
-  stmt = con:prepare('select * from dolt_diff_xy join dolt_log on commit_hash = to_commit')
+  local rs = con:query('select hashof(\'head~599\') as commit')
+  commit = unpack(rs:fetch_row(), 1, rs.nfields) 
+  q = string.format([[select * from dolt_diff_xy where from_commit = '%s';]], commit) 
+  print('Running: ' .. q)
 end
 
 function event()
-  stmt:execute()
+  con:query(q)
 end
 
 function thread_done()
-  stmt:close()
   con:disconnect()
 end
 
