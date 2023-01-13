@@ -3,15 +3,17 @@
 function thread_init()
   drv = sysbench.sql.driver()
   con = drv:connect()
-  stmt = con:prepare('select count(*) from dolt_history_xy where commit_hash = (select commit_hash from dolt_log limit 1 offset 29)')
+  local rs = con:query('select hashof(\'head~29\') as commit')
+  commit = unpack(rs:fetch_row(), 1, rs.nfields) 
+  q = string.format([[select count(*) from dolt_history_xy where commit_hash = '%s';]], commit) 
+  print('Running: ' .. q)
 end
 
 function event()
-  stmt:execute()
+  con:query(q)
 end
 
 function thread_done()
-  stmt:close()
   con:disconnect()
 end
 
