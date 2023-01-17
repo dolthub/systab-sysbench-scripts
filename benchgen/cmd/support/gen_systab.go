@@ -146,7 +146,7 @@ func (ins *inserter) generate() {
 	bufs := make([]bytes.Buffer, len(ins.cbs))
 
 	for ins.i < ins.c {
-		thisCm = randCommit()
+		thisCm = randCommit(ins.i)
 		for i, cb := range ins.cbs {
 			switch {
 			case cb.isHistory:
@@ -450,7 +450,7 @@ func (g *ScriptGen) genThreadInit(define ScriptDef) {
 	if define.Dummy == nil {
 		fmt.Fprintf(g.w, "  local rs = con:query('select hashof(\\'head~%d\\') as commit')\n", define.Commits-1)
 	} else {
-		fmt.Fprintf(g.w, "  local rs = con:query('select (select commit_hash from dl limit 1 offset %d) as commit')\n", define.Commits-1)
+		fmt.Fprintf(g.w, "  local rs = con:query('select (select commit_hash from dl order by date desc limit 1 offset %d) as commit')\n", define.Commits-1)
 	}
 	fmt.Fprintf(g.w, "  commit = unpack(rs:fetch_row(), 1, rs.nfields) \n")
 
@@ -493,12 +493,18 @@ type commit struct {
 	message   string
 }
 
-func randCommit() commit {
+func randCommit(i int) commit {
+	t := time.Now()
+	j := 0
+	for j < i {
+		j++
+		t = t.Add(time.Hour)
+	}
 	return commit{
 		hash:      randHash(),
-		time:      time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		time:      t.Format("2006-01-02T15:04:05Z07:00"),
 		email:     "max@dolthub.com",
 		committer: "Max Hoffman",
-		message:   "a commit message",
+		message:   fmt.Sprintf("commit %d", i),
 	}
 }
