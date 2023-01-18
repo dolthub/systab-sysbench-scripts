@@ -13,7 +13,7 @@ scripts:
   diffsPerCommit: 20
 - name: dolt_history_commit_filter
   query: "select count(*) from dolt_history_xy where commit_hash = '%s';"
-  commits: 30
+  commits: 100
   diffsPerCommit: 20
 - name: dolt_log_commit_filter
   query: "select * from dolt_log where commit_hash = '%s';"
@@ -33,6 +33,14 @@ scripts:
   diffsPerCommit: 20
 - name: dolt_diff_log_join_from_commit
   query: "select * from dolt_diff_xy join dolt_log on commit_hash = from_commit"
+  commits: 600
+  diffsPerCommit: 20
+- name: dolt_blame_basic
+  query: "select * from dolt_blame_xy"
+  commits: 100
+  diffsPerCommit: 20
+- name: dolt_blame_commit_filter
+  query: "select * from dolt_blame_xy where commit = '%s'"
   commits: 600
   diffsPerCommit: 20
 # dummy
@@ -59,7 +67,7 @@ scripts:
     dolt_log: dl
 - name: dolt_history_commit_filter_dummy
   query: "select count(*) from dh_xy where commit_hash = '%s';"
-  commits: 30
+  commits: 100
   diffsPerCommit: 20
   dummy:
     dolt_history_xy: dh_xy
@@ -93,6 +101,77 @@ scripts:
     dolt_log: dl
 - name: dolt_diff_log_join_from_commit_dummy
   query: "select * from dd_xy join dl on commit_hash = from_commit"
+  commits: 600
+  diffsPerCommit: 20
+  dummy:
+    dolt_diff_xy: dd_xy
+    dolt_log: dl
+- name: dolt_blame_basic_dummy
+  query: |
+    WITH sorted_diffs_by_pk AS (
+      SELECT
+        to_x,  -- allToPks
+        to_commit,
+        to_commit_date,
+        diff_type,
+      ROW_NUMBER() OVER (
+        PARTITION BY to_x -- pksPartitionByExpression
+        ORDER BY coalesce(to_commit_date, from_commit_date) DESC
+      ) row_num
+      FROM dd_xy  -- tableName
+    )
+    SELECT
+      sd.to_x,
+      sd.to_commit as commit,
+      sd.to_commit_date as commit_date,
+      dl.committer,
+      dl.email,
+      dl.message
+    FROM
+      sorted_diffs_by_pk as sd,
+      dl
+    WHERE
+      dl.commit_hash = sd.to_commit
+      and sd.row_num = 1
+      and sd.diff_type <> 'removed'
+    ORDER BY
+      sd.to_x;
+  commits: 100
+  diffsPerCommit: 20
+  dummy:
+    dolt_diff_xy: dd_xy
+    dolt_log: dl
+- name: dolt_blame_commit_filter_dummy
+  query: |
+    WITH sorted_diffs_by_pk AS (
+      SELECT
+        to_x,  -- allToPks
+        to_commit,
+        to_commit_date,
+        diff_type,
+      ROW_NUMBER() OVER (
+        PARTITION BY to_x -- pksPartitionByExpression
+        ORDER BY coalesce(to_commit_date, from_commit_date) DESC
+      ) row_num
+      FROM dd_xy  -- tableName
+    )
+    SELECT
+      sd.to_x,
+      sd.to_commit as commit,
+      sd.to_commit_date as commit_date,
+      dl.committer,
+      dl.email,
+      dl.message
+    FROM
+      sorted_diffs_by_pk as sd,
+      dl
+    WHERE
+      dl.commit_hash = sd.to_commit
+      and sd.row_num = 1
+      and sd.diff_type <> 'removed'
+      and sd.to_commit = '%s'
+    ORDER BY
+      sd.to_x;
   commits: 600
   diffsPerCommit: 20
   dummy:
